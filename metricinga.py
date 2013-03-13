@@ -17,6 +17,7 @@ import time
 
 import gevent
 from gevent import Timeout
+import gevent.monkey
 from gevent.queue import PriorityQueue
 import logging
 import logging.handlers
@@ -27,6 +28,8 @@ try:
     use_inotify = True
 except ImportError, ex:
     use_inotify = False
+
+gevent.monkey.patch_all()
 
 
 #
@@ -69,7 +72,7 @@ class Daemon:
                 # exit first parent
                 sys.exit(0) 
         except OSError, e: 
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            log.error("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
     
         # decouple from parent environment
@@ -84,15 +87,15 @@ class Daemon:
                 # exit from second parent
                 sys.exit(0) 
         except OSError, e: 
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            log.error("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1) 
     
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
-        si = file(self.stdin, 'r')
-        so = file(self.stdout, 'a+')
-        se = file(self.stderr, 'a+', 0)
+        si = open(self.stdin, 'r')
+        so = open(self.stdout, 'a+')
+        se = open(self.stderr, 'a+', 0)
         os.dup2(si.fileno(), sys.stdin.fileno())
         os.dup2(so.fileno(), sys.stdout.fileno())
         os.dup2(se.fileno(), sys.stderr.fileno())
@@ -100,7 +103,7 @@ class Daemon:
         # write pidfile
         atexit.register(self.delpid)
         pid = str(os.getpid())
-        file(self.pidfile,'w+').write("%s\n" % pid)
+        open(self.pidfile,'w+').write("%s\n" % pid)
 
     
     def delpid(self):
@@ -113,15 +116,14 @@ class Daemon:
         """
         # Check for a pidfile to see if the daemon already runs
         try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
+            with open(self.pidfile, 'r') as pf:
+                pid = int(pf.read().strip())
         except IOError:
             pid = None
     
         if pid:
             message = "pidfile %s already exists. Check that the daemon is not already running.\n"
-            sys.stderr.write(message % self.pidfile)
+            log.error(message % self.pidfile)
             sys.exit(1)
         
         # Start the daemon
@@ -135,20 +137,19 @@ class Daemon:
         """
         # Get the pid from the pidfile
         try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
+            with open(self.pidfile,'r') as pf:
+                pid = int(pf.read().strip())
         except IOError:
             pid = None
     
         if not pid:
             message = "pidfile %s does not exist. Daemon not running?\n"
-            sys.stderr.write(message % self.pidfile)
+            log.error(message % self.pidfile)
             return # not an error in a restart
 
         # Try killing the daemon process    
         try:
-            while 1:
+            while True:
                 os.kill(pid, SIGTERM)
                 time.sleep(0.1)
         except OSError, err:
@@ -157,7 +158,7 @@ class Daemon:
                 if os.path.exists(self.pidfile):
                     os.remove(self.pidfile)
             else:
-                print str(err)
+                log.error(err)
                 sys.exit(1)
 
 
@@ -462,7 +463,7 @@ def process_check_result(check_result, metrics_q):
 
     metric_path_root = []
 
-    if metric_prefix != '':
+    if metric_prefix:
         metric_path_root.append(metric_prefix)
 
     perfdata_prefix = check_result.get('GRAPHITEPREFIX')
@@ -564,7 +565,7 @@ def write_dispatcher_task(writers, metrics_q):
 
 host = None
 port = 2004
-metric_prefix = ''
+metric_prefix = None
 metric_replacement_char = '_'
 perfdata_spool_dir = '/var/spool/metricinga'
 pidfile = '/var/run/metricinga.pid'
@@ -597,7 +598,7 @@ if host is None:
 # Initialize logger
 #
 
-if daemonize is True:
+if daemonize:
     log_handler = logging.handlers.SysLogHandler('/dev/log')
     formatter = logging.Formatter(
             "%(filename)s: %(levelname)s %(message)s")
@@ -622,7 +623,7 @@ log.info("Starting up...")
 
 app = Daemon(pidfile)
 
-if daemonize is True:
+if daemonize:
     app.start()
 else:
     app.run()
