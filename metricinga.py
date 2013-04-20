@@ -9,6 +9,8 @@ import atexit
 import lockfile
 import os
 import cPickle as pickle
+import logging
+import logging.handlers
 from pprint import pformat, pprint
 import re
 import signal
@@ -21,9 +23,6 @@ import gevent
 from gevent import Greenlet, Timeout
 import gevent.monkey
 from gevent.queue import PriorityQueue
-import logging
-import logging.handlers
-from optparse import OptionGroup, OptionParser
 
 try:
     import gevent_inotifyx as inotify
@@ -413,6 +412,7 @@ class CarbonWriter(Actor):
             message = header + payload
 
             self._sock.sendall(message)
+            log.debug("Sent metric successfully.")
             gevent.sleep(self.sleep_secs)
         except socket.error, ex:
             # Attempt to reconnect, then re-queue the unsent metric
