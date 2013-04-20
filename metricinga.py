@@ -78,14 +78,14 @@ class Daemon:
             sys.exit(1) 
     
         # redirect standard file descriptors
-        #sys.stdout.flush()
-        #sys.stderr.flush()
+        sys.stdout.flush()
+        sys.stderr.flush()
         si = open(self.stdin, 'r')
-        #so = open(self.stdout, 'a+')
-        #se = open(self.stderr, 'a+', 0)
+        so = open(self.stdout, 'a+')
+        se = open(self.stderr, 'a+', 0)
         os.dup2(si.fileno(), sys.stdin.fileno())
-        #os.dup2(so.fileno(), sys.stdout.fileno())
-        #os.dup2(se.fileno(), sys.stderr.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
     
         # write pidfile
         atexit.register(self.delpid)
@@ -159,7 +159,7 @@ class Daemon:
     def run(self):
         """Assemble Voltron and form blazing sword
         """
-        cw = CarbonWriter(self.opts)
+        cw = CarbonPickleWriter(self.opts)
 
         lp = LineProcessor(self.opts)
         lp.on_metric_found.subscribe(
@@ -204,10 +204,10 @@ class Daemon:
 class Metric(object):
     """Represents a single datapoint of a system metric
     """
-    def __init__(self, path=[], value=0, timestamp=0, source=None):
+    def __init__(self, path=[], timestamp=0, value=0, source=None):
         self.path = path
-        self.value = value
         self.timestamp = timestamp
+        self.value = value
         self.source = source
 
 
@@ -406,11 +406,7 @@ class CarbonWriter(Actor):
             log.debug("Sending metric to Carbon: %s %s %s" %
                       (name, timestamp, value))
 
-            pickle_list = [(name, (timestamp, value))]
-            payload = pickle.dumps(pickle_list)
-            header = struct.pack("!L", len(payload))
-            message = header + payload
-
+            message = self._serialize(metric)
             self._sock.sendall(message)
             log.debug("Sent metric successfully.")
             gevent.sleep(self.sleep_secs)
@@ -465,6 +461,24 @@ class CarbonWriter(Actor):
         """Replace unwanted characters in metric with escape sequence
         """
         return re.sub("[^\w-]", self.opts.replacement_char, s)
+
+
+class CarbonLineWriter(CarbonWriter):
+    def _serialize(self, metric):
+        path_s = '.'.join([self._sanitize_metric_name(x)
+                           for x in metric.path])
+        return "{path} {value} {timestamp}\n".format(path=path_s,
+                value=metric.value, timestamp=metric.timestamp)
+
+
+class CarbonPickleWriter(CarbonWriter):
+    def _serialize(self, metric):
+        path_s = '.'.join([self._sanitize_metric_name(x)
+                           for x in metric.path])
+        pickle_list = [(path_s, (metric.timestamp, metric.value))]
+        payload = pickle.dumps(pickle_list)
+        header = struct.pack("!L", len(payload))
+        return header + payload
 
 
 class FileProcessor(Actor):
@@ -608,13 +622,14 @@ class LineProcessor(Actor):
             else:
                 metric_path_base.append(service_desc)
 
-        timestamp = fields['TIMET']
+        timestamp = int(fields['TIMET'])
         perfdata = fields[datatype]
         counters = self._parse_perfdata(perfdata)
 
         for (counter, value) in counters:
             metric_path = metric_path_base + [counter]
-            yield Metric(metric_path, timestamp, value, source)
+            yield Metric(path=metric_path, timestamp=timestamp,
+                         value=value, source=source)
 
 
     def _parse_perfdata(self, s):
