@@ -31,6 +31,7 @@ except ImportError, ex:
     use_inotify = False
 
 gevent.monkey.patch_all()
+log = logging.getLogger('log')
 
 #
 # Custom daemonizer (python-daemon has unexplained issues with gevent)
@@ -703,33 +704,36 @@ def parse_options():
     return parser.parse_args()
 
 
-opts = parse_options()
+def main():
+    opts = parse_options()
 
-if opts.host is None:
-    print("Fatal: No Graphite host specified!")
-    sys.exit(1)
+    if opts.host is None:
+        print("Fatal: No Graphite host specified!")
+        sys.exit(1)
 
-log_level = logging.INFO
-if opts.verbose:
-    log_level = logging.DEBUG
+    log_level = logging.INFO
+    if opts.verbose:
+        log_level = logging.DEBUG
 
-if opts.daemonize:
-    log_handler = logging.handlers.SysLogHandler('/dev/log')
-    formatter = logging.Formatter(
-            "%(filename)s: %(levelname)s %(message)s")
-else:
-    log_handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-            "%(asctime)s %(filename)s: %(levelname)s %(message)s",
-            "%Y/%m/%d %H:%M:%S")
+    if opts.daemonize:
+        log_handler = logging.handlers.SysLogHandler('/dev/log')
+        formatter = logging.Formatter(
+                "%(filename)s: %(levelname)s %(message)s")
+    else:
+        log_handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+                "%(asctime)s %(filename)s: %(levelname)s %(message)s",
+                "%Y/%m/%d %H:%M:%S")
 
-log_handler.setFormatter(formatter)
-log = logging.getLogger('log')
-log.addHandler(log_handler)
-log.setLevel(log_level)
+    log_handler.setFormatter(formatter)
+    log.addHandler(log_handler)
+    log.setLevel(log_level)
 
-app = Daemon(opts)
-if opts.daemonize:
-    app.start()
-else:
-    app.run()
+    app = Daemon(opts)
+    if opts.daemonize:
+        app.start()
+    else:
+        app.run()
+
+if __name__ == '__main__':
+    main()
