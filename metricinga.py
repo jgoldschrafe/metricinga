@@ -254,7 +254,11 @@ class PurgedFileToken(object):
 
     def __del__(self):
         log.debug("Unlinking file `{0}'".format(self.path))
-        os.remove(self.path)
+        try:
+            os.remove(self.path)
+        except OSError, ex:
+            err = "Tried to delete `{path}', but it doesn't exist"
+            log.warn(err.format(path=self.path))
         PurgedFileFactory.destroy(self.path)
 
 
@@ -512,12 +516,16 @@ class FileProcessor(Actor):
         source = PurgedFileFactory.create(path)
         if source:
             log.debug("Accepted file parse request: " + path)
-            with open(path, "r") as fp:
-                for line in fp:
-                    sstr = SourcedString(line.rstrip(os.linesep),
-                                         source)
-                    self.on_line_found(sstr)
-                    gevent.sleep(0)
+            try:
+                with open(path, "r") as fp:
+                    for line in fp:
+                        sstr = SourcedString(line.rstrip(os.linesep),
+                                             source)
+                        self.on_line_found(sstr)
+                        gevent.sleep(0)
+            except IOError, ex:
+                log.warn("Couldn't open file `{path}': {error}".format(
+                        path=path, error=ex.strerror))
         else:
             log.debug("Received request to parse {0}, but file is already known".format(path))
 
