@@ -729,6 +729,8 @@ def parse_options():
                         spool_dir='/var/spool/metricinga')
     parser.add_argument('-d-', '--daemonize', action='store_true',
             help='Run as a daemon')
+    parser.add_argument('--pidfile',
+            help='Path to daemon pidfile')
     parser.add_argument('-v', '--verbose', action='store_true',
             help='Enable verbose output')
 
