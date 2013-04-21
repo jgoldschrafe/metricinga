@@ -555,7 +555,12 @@ class InotifyWatcher(Greenlet):
             for event in events:
                 path = os.path.sep.join([self.opts.spool_dir,
                                          event.name])
-                self.on_find(path)
+
+                # Filter out inotify events generated for files that
+                # have been already unlinked from the filesystem
+                # (IN_EXCL_UNLINK emulation)
+                if os.path.exists(path):
+                    self.on_find(path)
 
 
 class LineProcessor(Actor):
