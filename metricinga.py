@@ -170,12 +170,16 @@ class Daemon:
         fp.on_line_found.subscribe(
                 lambda line: lp.send(ParseLineRequest(line)))
 
+        iw = InotifyWatcher(self.opts)
+        iw.on_find.subscribe(
+                lambda path: fp.send(ParseFileRequest(path)))
+
         sp = SpoolRunner(self.opts)
         sp.on_find.subscribe(
                 lambda path: fp.send(ParseFileRequest(path)))
 
         actors = [cw, lp, fp]
-        tasklets = [sp]
+        tasklets = [iw, sp]
         workers = actors + tasklets
 
         def shutdown(actors, tasklets):
@@ -518,8 +522,36 @@ class FileProcessor(Actor):
             log.debug("Received request to parse {0}, but file is already known".format(path))
 
 
+class InotifyWatcher(Greenlet):
+    """Monitor spool directory for inotify activity and emit events
+    """
+    def __init__(self, opts):
+        self.opts = opts
+        Greenlet.__init__(self)
+
+    @event
+    def on_find(self):
+        """Called when a file is finished being written into spool
+        """
+
+    def _run(self):
+        if not use_inotify:
+            log.warn("gevent_inotifyx not loaded; not using inotify")
+            return
+
+        fd = inotify.init()
+        wd = inotify.add_watch(fd, self.opts.spool_dir,
+                inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO)
+        while True:
+            events = inotify.get_events(fd)
+            for event in events:
+                path = os.path.sep.join([self.opts.spool_dir,
+                                         event.name])
+                self.on_find(path)
+
+
 class LineProcessor(Actor):
-    """Process lines of check results.
+    """Process lines of check results
     """
 
     def __init__(self, opts):
@@ -714,6 +746,9 @@ def main():
     log_level = logging.INFO
     if opts.verbose:
         log_level = logging.DEBUG
+
+    if use_inotify:
+        opts.poll_interval = None
 
     if opts.daemonize:
         log_handler = logging.handlers.SysLogHandler('/dev/log')

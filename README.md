@@ -11,6 +11,7 @@ Requirements
 * Python 2.6 or greater (older versions may work also)
 * argparse. if using Python <2.7
 * gevent 1.0rc1+, installed from GitHub
+* gevent-inotifyx (optional, for Linux inotify support)
 
 Configuration
 =============
@@ -63,6 +64,7 @@ Metricinga is configured entirely with command-line arguments. A basic sample in
     python metricinga.py --prefix nagios --host graphite.mydomain.org --daemonize
 
 Init scripts are coming soon!
+
 
 BSD License
 ===========
