@@ -438,7 +438,6 @@ class CarbonWriter(Actor):
                      host=self.opts.host, port=self.opts.port,
                      secs=self.backoff_secs))
             self._increase_backoff()
-            log.warn("Reconnecting in %s seconds" % self.backoff_secs)
 
 
     def _increase_backoff(self):
