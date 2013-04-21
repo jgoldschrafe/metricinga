@@ -63,7 +63,7 @@ Metricinga is configured entirely with command-line arguments. A basic sample in
 
     python metricinga.py --prefix nagios --host graphite.mydomain.org --daemonize
 
-Init scripts are coming soon!
+An init script for Red Hat Enterprise Linux and CentOS is included in the `redhat/` directory of the distribution. Contributions for upstart, systemd and others are welcome!
 
 
 BSD License
