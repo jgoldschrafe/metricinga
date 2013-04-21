@@ -1,0 +1,8 @@
+# Hostname of your Graphite server
+#GRAPHITE_HOST=graphite
+
+# Graphite pickle port
+#GRAPHITE_PICKLE_PORT=2004
+
+# Additional options
+#METRICINGA_OPTIONS=""

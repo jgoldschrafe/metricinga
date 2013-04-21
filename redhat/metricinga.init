@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# metricinga - This script starts and stops Metricinga
+#
+# chkconfig:   - 85 15
+# description: Metricinga is an application for forwarding performance data
+#              from Nagios or Icinga into Graphite or other system metrics
+#              storage tools.
+# processname: metricinga
+# config:      /etc/sysconfig/metricinga
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ "$NETWORKING" = "no" ] && exit 0
+
+metricinga="/usr/bin/metricinga"
+prog=$(basename "$metricinga")
+pidfile="/var/run/metricinga/metricinga.pid"
+
+if [ -f /etc/sysconfig/metricinga ]; then
+    . /etc/sysconfig/metricinga
+fi
+
+GRAPHITE_HOST="${GRAPHITE_HOST:-graphite}"
+GRAPHITE_PICKLE_PORT="${GRAPHITE_PICKLE_PORT:-2004}"
+
+args="--daemonize --host ${GRAPHITE_HOST} --pidfile ${pidfile} --port ${GRAPHITE_PICKLE_PORT} ${METRICINGA_OPTIONS}"
+
+start() {
+    echo -n "Starting Metricinga..."
+    daemon --pidfile="$pidfile" $metricinga $args
+    retval=$?
+    echo
+    return $retval
+}
+
+rh_status() {
+    status -p "$pidfile" "$prog"
+}
+
+stop() {
+    echo -n "Stopping Metricinga..."
+    killproc -p "$pidfile" "$prog"
+    retval=$?
+    echo
+    return $retval
+}
+
+case $1 in
+    condrestart|try-restart)
+        rh_status 2>/dev/null && restart
+        ;;
+    force_reload|restart)
+        stop
+        start
+        ;;
+    start)
+        start
+        ;;
+    status)
+        rh_status
+        ;;
+    status_q)
+        rh_status >/dev/null 2>&1
+        ;;
+    stop)
+        stop
+        ;;
+    *)
+        echo "Usage: $0 {condrestart|restart|start|status|stop}"
+        exit 2
+        ;;
+esac
+
+exit $?
