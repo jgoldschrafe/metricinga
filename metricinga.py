@@ -385,7 +385,6 @@ class CarbonWriter(Actor):
 
         Actor.__init__(self)
         self._handlers[PublishMetricRequest] = self.receive_publish
-        self._sock = socket.socket()
         self._connect()
 
 
@@ -426,6 +425,7 @@ class CarbonWriter(Actor):
         greenlet until the backoff time has elapsed.
         """
         gevent.sleep(self.backoff_secs)
+        self._sock = socket.socket()
 
         try:
             log.info("Connecting to Carbon instance at %s:%s" %
@@ -434,11 +434,10 @@ class CarbonWriter(Actor):
             log.info("Connected to Carbon successfully")
             self._reset_backoff()
         except socket.error, ex:
-            log.warn("Failed to connect to %s:%s" %
-                     (self.opts.host, self.opts.port))
-
+            log.warn("Failed to connect to {host}:{port}; retry in {secs} seconds".format(
+                     host=self.opts.host, port=self.opts.port,
+                     secs=self.backoff_secs))
             self._increase_backoff()
-
             log.warn("Reconnecting in %s seconds" % self.backoff_secs)
 
 
