@@ -39,7 +39,8 @@ log = logging.getLogger('log')
 class Daemon:
     """Daemon class for Metricinga
     """
-    def __init__(self, opts, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+    def __init__(self, opts, stdin='/dev/null', stdout='/dev/null',
+                 stderr='/dev/null'):
         self.opts = opts
         self.stdin = stdin
         self.stdout = stdout
@@ -276,11 +277,6 @@ class SourcedString(object):
 # Message encapsulation classes
 #
 
-class ShutdownRequest(object):
-    """Request that an Actor clean up and terminate execution
-    """
-    pass
-
 
 class ParseFileRequest(object):
     """Request that an Actor parse a file
@@ -301,6 +297,12 @@ class PublishMetricRequest(object):
     """
     def __init__(self, metric):
         self.metric = metric
+
+
+class ShutdownRequest(object):
+    """Request that an Actor clean up and terminate execution
+    """
+    pass
 
 
 #
@@ -703,11 +705,14 @@ class SpoolRunner(Greenlet):
         """Called when a file is found by the spool runner
         """
 
+    def _find_files(self):
+        for filename in os.listdir(self.opts.spool_dir):
+            self.on_find(os.path.sep.join([self.opts.spool_dir,
+                                           filename]))
+
     def _run(self):
         while True:
-            for filename in os.listdir(self.opts.spool_dir):
-                self.on_find('/'.join([self.opts.spool_dir,
-                                       filename]))
+            self._find_files()
 
             if self.opts.poll_interval is not None:
                 gevent.sleep(self.opts.poll_interval)
@@ -717,7 +722,6 @@ class SpoolRunner(Greenlet):
 
 def parse_arguments(args):
     parser = ArgumentParser()
-
     parser.set_defaults(daemonize=False,
                         host=None,
                         prefix=None,
@@ -726,6 +730,7 @@ def parse_arguments(args):
                         poll_interval=60,
                         port=2004,
                         spool_dir='/var/spool/metricinga')
+
     parser.add_argument('-d', '--daemonize', action='store_true',
             help='Run as a daemon')
     parser.add_argument('--pidfile',
@@ -751,7 +756,7 @@ def parse_arguments(args):
 
 
 def main():
-    opts = parse_arguments(sys.argv)
+    opts = parse_arguments(sys.argv[1:])
 
     if opts.host is None:
         print("Fatal: No Graphite host specified!")

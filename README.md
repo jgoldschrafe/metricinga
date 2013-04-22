@@ -12,6 +12,7 @@ Requirements
 * argparse. if using Python <2.7
 * gevent 1.0rc1+, installed from GitHub
 * gevent-inotifyx (optional, for Linux inotify support)
+* nose (optional, for running unit tests)
 
 Configuration
 =============
