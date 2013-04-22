@@ -6,9 +6,8 @@
 
 from argparse import ArgumentParser
 import atexit
-import lockfile
-import os
 import cPickle as pickle
+import os
 import logging
 import logging.handlers
 from pprint import pformat, pprint
@@ -716,7 +715,7 @@ class SpoolRunner(Greenlet):
                 break
 
 
-def parse_options():
+def parse_arguments(args):
     parser = ArgumentParser()
 
     parser.set_defaults(daemonize=False,
@@ -727,7 +726,7 @@ def parse_options():
                         poll_interval=60,
                         port=2004,
                         spool_dir='/var/spool/metricinga')
-    parser.add_argument('-d-', '--daemonize', action='store_true',
+    parser.add_argument('-d', '--daemonize', action='store_true',
             help='Run as a daemon')
     parser.add_argument('--pidfile',
             help='Path to daemon pidfile')
@@ -740,7 +739,7 @@ def parse_options():
             help='Replacement char for illegal metric characters')
     parser.add_argument('-D', '--spool-dir',
             help='Spool directory to watch for perfdata files')
-    parser.add_argument('--poll-interval',
+    parser.add_argument('--poll-interval', type=int,
             help='Spool polling interval (if not using inotify)')
 
     parser.add_argument('-H', '--host',
@@ -748,11 +747,11 @@ def parse_options():
     parser.add_argument('-p', '--port', type=int,
             help='Port to connect to')
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 def main():
-    opts = parse_options()
+    opts = parse_arguments(sys.argv)
 
     if opts.host is None:
         print("Fatal: No Graphite host specified!")
